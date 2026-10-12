@@ -1,0 +1,8 @@
+{"success":true,"message":"Account created successfully",
+"token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjZhYzdhNTdhNjY0Njk0MjAzNjNhYTM1MSIsImlhdCI6MTc5MTQ2ODkyMiwiZXhwIjoxNzkyMDczNzIyfQ.NqrMaudNHdYLElyRS3NIh9ONdGeYeSRVU-oo7ZcW8Vk",
+"player":{"id":"6ac7a57a66469420363aa351",
+"username":"Babajide_Hustle",
+"email":"babajide@example.com",
+"currentLocation":"Lagos",
+"cash":50000,
+"energy":100}}
