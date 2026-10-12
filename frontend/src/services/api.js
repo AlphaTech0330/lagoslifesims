@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = 'http://localhost:3030/api';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3030/api';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -9,7 +9,6 @@ const api = axios.create({
   }
 });
 
-// Attach JWT token to every outgoing request
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('hustle_token');
   if (token) {

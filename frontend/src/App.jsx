@@ -11,7 +11,8 @@ import {
   ShoppingCart, DollarSign, X, Building2, Users, PackageCheck, LogOut 
 } from 'lucide-react';
 
-const SOCKET_URL = 'http://localhost:3030';
+// const SOCKET_URL = 'http://localhost:3030';
+const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:3030';
 const REGIONS = ['Lagos', 'Ibadan', 'Ogun', 'Osun', 'Kwara'];
 
 export default function App() {
