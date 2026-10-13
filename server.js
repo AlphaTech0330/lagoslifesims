@@ -12,6 +12,7 @@ const gameRoutes = require('./routes/gameRoutes');
 const propertyRoutes = require('./routes/propertyRoutes');
 const factionRoutes = require('./routes/factionRoutes');
 const electionRoutes = require('./routes/electionRoutes');
+const adminRoutes = require('./routes/adminRoutes');
 
 // Model & Service Imports
 const Item = require('./models/Item');
@@ -62,6 +63,7 @@ app.use('/api/game', gameRoutes);
 app.use('/api/properties', propertyRoutes);
 app.use('/api/factions', factionRoutes);
 app.use('/api/elections', electionRoutes);
+app.use('/api/admin', adminRoutes);
 
 // 6. Initialize Scheduled Cron Jobs
 initCronJobs(io);

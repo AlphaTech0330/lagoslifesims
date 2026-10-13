@@ -9,17 +9,18 @@ import SoundEngine from './components/SoundEngine';
 import CheckpointModal from './components/CheckpointModal';
 import UnionElection from './components/UnionElection';
 import TraderChat from './components/TraderChat';
+import AdminPanel from './components/AdminPanel';
 import { 
   MapPin, Wallet, Zap, Truck, TrendingUp, 
   ShoppingCart, DollarSign, X, Building2, Users, 
-  PackageCheck, LogOut, Vote, MessageSquare 
+  PackageCheck, LogOut, Vote, MessageSquare, Crown 
 } from 'lucide-react';
 
 const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:3030';
 const REGIONS = ['Lagos', 'Ibadan', 'Ogun', 'Osun', 'Kwara'];
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState('MARKET'); // 'MARKET', 'REAL_ESTATE', 'FACTIONS', 'CARGO', 'ELECTIONS', 'CHAT'
+  const [activeTab, setActiveTab] = useState('MARKET'); // 'MARKET', 'REAL_ESTATE', 'ELECTIONS', 'FACTIONS', 'CARGO', 'CHAT', 'ADMIN'
   const [player, setPlayer] = useState(null);
   const [market, setMarket] = useState([]);
   const [socket, setSocket] = useState(null);
@@ -107,7 +108,7 @@ export default function App() {
       await api.post('/auth/logout');
     } catch (err) {
       console.error('Logout error:', err);
-    } fontally {
+    } finally {
       localStorage.removeItem('hustle_token');
       setPlayer(null);
       if (socket) socket.close();
@@ -234,13 +235,23 @@ export default function App() {
       {/* PERSISTENT HEADER & PLAYER STATS */}
       <header className="max-w-6xl mx-auto bg-hustle-card p-6 rounded-xl border border-gray-800 flex flex-wrap items-center justify-between gap-4 mb-6 shadow-lg">
         <div>
-          <h1 className="text-2xl font-black text-hustle-green tracking-wide">
-            SOUTHWEST HUSTLE <span className="text-xs text-hustle-gold uppercase font-mono">v1.0</span>
+          <h1 className="text-2xl font-black text-hustle-green tracking-wide flex items-center gap-2">
+            SOUTHWEST HUSTLE 
+            <span className="text-xs text-hustle-gold uppercase font-mono bg-gray-800 px-2 py-0.5 rounded border border-gray-700">
+              v1.0
+            </span>
           </h1>
-          <p className="text-sm text-gray-400">Player: <span className="text-white font-semibold">{player?.username}</span></p>
+          <p className="text-sm text-gray-400">
+            Player: <span className="text-white font-semibold">{player?.username}</span>
+            {player?.isAdmin && (
+              <span className="ml-2 text-[10px] bg-hustle-gold text-black font-black uppercase px-1.5 py-0.5 rounded">
+                ADMIN
+              </span>
+            )}
+          </p>
         </div>
 
-        <div className="flex items-center gap-4 text-sm">
+        <div className="flex items-center gap-4 text-sm flex-wrap">
           <div className="flex items-center gap-2 bg-gray-800 px-4 py-2 rounded-lg">
             <MapPin className="w-5 h-5 text-hustle-green" />
             <div>
@@ -279,7 +290,7 @@ export default function App() {
       <nav className="max-w-6xl mx-auto flex items-center gap-2 mb-8 bg-gray-900 p-1.5 rounded-xl border border-gray-800 overflow-x-auto">
         <button
           onClick={() => setActiveTab('MARKET')}
-          className={`flex-1 min-w-[130px] py-3 rounded-lg text-xs sm:text-sm font-bold transition flex items-center justify-center gap-2 ${
+          className={`flex-1 min-w-[120px] py-3 rounded-lg text-xs sm:text-sm font-bold transition flex items-center justify-center gap-2 ${
             activeTab === 'MARKET'
               ? 'bg-hustle-green text-white shadow-md'
               : 'text-gray-400 hover:text-white hover:bg-gray-800/50'
@@ -291,7 +302,7 @@ export default function App() {
 
         <button
           onClick={() => setActiveTab('REAL_ESTATE')}
-          className={`flex-1 min-w-[130px] py-3 rounded-lg text-xs sm:text-sm font-bold transition flex items-center justify-center gap-2 ${
+          className={`flex-1 min-w-[120px] py-3 rounded-lg text-xs sm:text-sm font-bold transition flex items-center justify-center gap-2 ${
             activeTab === 'REAL_ESTATE'
               ? 'bg-hustle-green text-white shadow-md'
               : 'text-gray-400 hover:text-white hover:bg-gray-800/50'
@@ -303,7 +314,7 @@ export default function App() {
 
         <button
           onClick={() => setActiveTab('ELECTIONS')}
-          className={`flex-1 min-w-[130px] py-3 rounded-lg text-xs sm:text-sm font-bold transition flex items-center justify-center gap-2 ${
+          className={`flex-1 min-w-[120px] py-3 rounded-lg text-xs sm:text-sm font-bold transition flex items-center justify-center gap-2 ${
             activeTab === 'ELECTIONS'
               ? 'bg-hustle-green text-white shadow-md'
               : 'text-gray-400 hover:text-white hover:bg-gray-800/50'
@@ -315,7 +326,7 @@ export default function App() {
 
         <button
           onClick={() => setActiveTab('FACTIONS')}
-          className={`flex-1 min-w-[130px] py-3 rounded-lg text-xs sm:text-sm font-bold transition flex items-center justify-center gap-2 ${
+          className={`flex-1 min-w-[120px] py-3 rounded-lg text-xs sm:text-sm font-bold transition flex items-center justify-center gap-2 ${
             activeTab === 'FACTIONS'
               ? 'bg-hustle-green text-white shadow-md'
               : 'text-gray-400 hover:text-white hover:bg-gray-800/50'
@@ -327,7 +338,7 @@ export default function App() {
 
         <button
           onClick={() => setActiveTab('CARGO')}
-          className={`flex-1 min-w-[130px] py-3 rounded-lg text-xs sm:text-sm font-bold transition flex items-center justify-center gap-2 ${
+          className={`flex-1 min-w-[120px] py-3 rounded-lg text-xs sm:text-sm font-bold transition flex items-center justify-center gap-2 ${
             activeTab === 'CARGO'
               ? 'bg-hustle-green text-white shadow-md'
               : 'text-gray-400 hover:text-white hover:bg-gray-800/50'
@@ -339,7 +350,7 @@ export default function App() {
 
         <button
           onClick={() => setActiveTab('CHAT')}
-          className={`flex-1 min-w-[130px] py-3 rounded-lg text-xs sm:text-sm font-bold transition flex items-center justify-center gap-2 ${
+          className={`flex-1 min-w-[120px] py-3 rounded-lg text-xs sm:text-sm font-bold transition flex items-center justify-center gap-2 ${
             activeTab === 'CHAT'
               ? 'bg-hustle-green text-white shadow-md'
               : 'text-gray-400 hover:text-white hover:bg-gray-800/50'
@@ -348,6 +359,20 @@ export default function App() {
           <MessageSquare className="w-4 h-4" />
           <span>Trade Chat</span>
         </button>
+
+        {player?.isAdmin && (
+          <button
+            onClick={() => setActiveTab('ADMIN')}
+            className={`flex-1 min-w-[130px] py-3 rounded-lg text-xs sm:text-sm font-bold transition flex items-center justify-center gap-2 ${
+              activeTab === 'ADMIN'
+                ? 'bg-hustle-gold text-black shadow-md'
+                : 'text-hustle-gold hover:bg-amber-950/40 border border-hustle-gold/30'
+            }`}
+          >
+            <Crown className="w-4 h-4" />
+            <span>Admin Command</span>
+          </button>
+        )}
       </nav>
 
       {/* DYNAMIC TAB CONTENT */}
@@ -476,6 +501,10 @@ export default function App() {
 
         {activeTab === 'CHAT' && (
           <TraderChat socket={socket} player={player} />
+        )}
+
+        {activeTab === 'ADMIN' && player?.isAdmin && (
+          <AdminPanel player={player} onPlayerUpdate={handlePlayerUpdate} />
         )}
       </main>
 
