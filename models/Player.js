@@ -1,119 +1,71 @@
 const mongoose = require('mongoose');
+const bcrypt = require('bcryptjs');
 
-const playerSchema = new mongoose.Schema({
-  // --- Account & Auth Credentials ---
+const PlayerSchema = new mongoose.Schema({
   username: { 
     type: String, 
-    required: [true, 'Username is required'], 
+    required: true, 
     unique: true, 
     trim: true 
   },
   email: { 
     type: String, 
-    required: [true, 'Email is required'], 
+    required: true, 
     unique: true, 
-    lowercase: true,
+    lowercase: true, 
     trim: true 
   },
   password: { 
     type: String, 
-    required: [true, 'Password is required'] 
+    required: true 
   },
-
-  // --- Location & Core Stats ---
+  isAdmin: { 
+    type: Boolean, 
+    default: false 
+  },
   currentLocation: { 
     type: String, 
-    enum: ['Lagos', 'Ibadan', 'Ogun', 'Osun', 'Kwara'], 
     default: 'Lagos' 
   },
   cash: { 
     type: Number, 
-    default: 50000 // Liquid Naira
-  },
-  bankBalance: { 
-    type: Number, 
-    default: 0 
+    default: 250000 
   },
   energy: { 
     type: Number, 
-    default: 100, 
-    min: 0, 
-    max: 100 
-  },
-
-  // --- Regional Reputation ---
-  reputation: {
-    lagosTech: { type: Number, default: 0 },
-    ibadanTrade: { type: Number, default: 0 },
-    ogunIndustry: { type: Number, default: 0 },
-    osunCulture: { type: Number, default: 0 },
-    kwaraCommerce: { type: Number, default: 0 }
-  },
-
-  // --- Inventory & Warehouse Storage ---
-  inventory: [{
-    itemId: { 
-      type: mongoose.Schema.Types.ObjectId, 
-      ref: 'Item',
-      required: true 
-    },
-    quantity: { 
-      type: Number, 
-      default: 0, 
-      min: 0 
-    }
-  }],
-  extraStorageCapacity: { 
-    type: Number, 
-    default: 0 // Additional cargo capacity (in kg) provided by active warehouses
-  },
-
-  // --- Real Estate & Properties ---
-  propertiesOwned: [{ 
-    type: mongoose.Schema.Types.ObjectId, 
-    ref: 'Property' 
-  }],
-  propertiesRented: [{
-    propertyId: { 
-      type: mongoose.Schema.Types.ObjectId, 
-      ref: 'Property' 
-    },
-    leaseExpiresAt: { type: Date }
-  }],
-
-  // --- Transport Union Faction ---
-  faction: { 
-    type: mongoose.Schema.Types.ObjectId, 
-    ref: 'Faction', 
-    default: null 
-  },
-  factionRole: { 
-    type: String, 
-    enum: ['Leader', 'Officer', 'Member', 'None'], 
-    default: 'None' 
-  },
-
-  // --- Leaderboard & Performance Metrics ---
-  netWorth: { 
-    type: Number, 
-    default: 50000 // Aggregated liquid cash + property valuation
+    default: 100 
   },
   totalTradesCompleted: { 
     type: Number, 
     default: 0 
   },
-  totalCargoHauledKg: { 
+  extraStorageCapacity: { 
     type: Number, 
     default: 0 
-  }
-}, { 
-  timestamps: true 
+  },
+  inventory: [{
+    itemId: { 
+      type: mongoose.Schema.Types.ObjectId, 
+      ref: 'Item' 
+    },
+    quantity: { 
+      type: Number, 
+      default: 0 
+    }
+  }]
+}, { timestamps: true });
+
+// Password hashing middleware before save
+PlayerSchema.pre('save', async function(next) {
+  if (!this.isModified('password')) return next();
+  const salt = await bcrypt.genSalt(10);
+  this.password = await bcrypt.hash(this.password, salt);
+  next();
 });
 
-// Helper Virtual: Dynamically calculate total effective storage capacity
-playerSchema.virtual('totalCapacityKg').get(function () {
-  const baseCapacity = 5000; // Base haulage capacity
-  return baseCapacity + this.extraStorageCapacity;
-});
+// Compare password helper
+PlayerSchema.methods.matchPassword = async function(enteredPassword) {
+  return await bcrypt.compare(enteredPassword, this.password);
+};
 
-module.exports = mongoose.model('Player', playerSchema);
+module.exports = mongoose.model('Player', PlayerSchema);

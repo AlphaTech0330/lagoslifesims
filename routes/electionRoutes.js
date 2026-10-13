@@ -7,12 +7,18 @@ const {
   closeElection,
   forceRotateElections 
 } = require('../controllers/electionController');
-const { protect } = require('../middleware/authMiddleware');
 
+// Middleware Imports
+const { protect } = require('../middleware/authMiddleware');
+const { adminOnly } = require('../middleware/adminMiddleware');
+
+// Standard Player Routes
 router.get('/', protect, getElections);
 router.post('/register', protect, registerCandidate);
 router.post('/vote', protect, castVote);
-router.post('/close', protect, closeElection);
-router.post('/force-rotate', protect, forceRotateElections);
+
+// Restricted Admin Routes
+router.post('/close', protect, adminOnly, closeElection);
+router.post('/force-rotate', protect, adminOnly, forceRotateElections);
 
 module.exports = router;
