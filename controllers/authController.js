@@ -1,127 +1,117 @@
-const Player = require('../models/Player');
 const jwt = require('jsonwebtoken');
-const bcrypt = require('bcryptjs');
+const Player = require('../models/Player');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your_fallback_secret_key_change_in_production';
-const JWT_EXPIRES_IN = '7d'; // Token valid for 7 days
+// Helper to issue short-lived access token and long-lived HTTP-only refresh cookie
+const generateTokens = (res, playerId) => {
+  const token = jwt.sign({ id: playerId }, process.env.JWT_SECRET, { expiresIn: '15m' });
+  const refreshToken = jwt.sign({ id: playerId }, process.env.JWT_SECRET, { expiresIn: '7d' });
 
-/**
- * Helper: Generate JWT Token
- */
-const generateToken = (id) => {
-  return jwt.sign({ id }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+  // Set HTTP-only Cookie for Refresh Token
+  res.cookie('refreshToken', refreshToken, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+    maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+  });
+
+  return token;
 };
 
-/**
- * @desc    Register a new player account
- * @route   POST /api/auth/register
- * @access  Public
- */
+// POST /api/auth/register
 exports.register = async (req, res) => {
+  const { username, email, password } = req.body;
+
   try {
-    const { username, email, password } = req.body;
-
-    if (!username || !email || !password) {
-      return res.status(400).json({ success: false, message: 'Please provide username, email, and password' });
-    }
-
-    // Check if player already exists
     const existingPlayer = await Player.findOne({ $or: [{ email }, { username }] });
     if (existingPlayer) {
       return res.status(400).json({ 
         success: false, 
-        message: existingPlayer.email === email ? 'Email already registered' : 'Username already taken' 
+        message: 'Username or email address is already registered.' 
       });
     }
 
-    // Hash password
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
-
-    // Create player with default starting state
     const player = await Player.create({
       username,
       email,
-      password: hashedPassword,
+      password,
       currentLocation: 'Lagos',
-      cash: 50000,
+      cash: 250000,
       energy: 100
     });
 
-    const token = generateToken(player._id);
+    const token = generateTokens(res, player._id);
 
     res.status(201).json({
       success: true,
-      message: 'Account created successfully',
       token,
-      player: {
-        id: player._id,
-        username: player.username,
-        email: player.email,
-        currentLocation: player.currentLocation,
-        cash: player.cash,
-        energy: player.energy
-      }
+      player
     });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
   }
 };
 
-/**
- * @desc    Authenticate player & get token
- * @route   POST /api/auth/login
- * @access  Public
- */
+// POST /api/auth/login
 exports.login = async (req, res) => {
+  const { email, password } = req.body;
+
   try {
-    const { email, password } = req.body;
-
-    if (!email || !password) {
-      return res.status(400).json({ success: false, message: 'Please provide email and password' });
-    }
-
-    // Find player by email
     const player = await Player.findOne({ email });
-    if (!player) {
+    if (!player || !(await player.matchPassword(password))) {
       return res.status(401).json({ success: false, message: 'Invalid credentials' });
     }
 
-    // Check password
-    const isMatch = await bcrypt.compare(password, player.password);
-    if (!isMatch) {
-      return res.status(401).json({ success: false, message: 'Invalid credentials' });
-    }
-
-    const token = generateToken(player._id);
+    const token = generateTokens(res, player._id);
 
     res.json({
       success: true,
       token,
-      player: {
-        id: player._id,
-        username: player.username,
-        email: player.email,
-        currentLocation: player.currentLocation,
-        cash: player.cash,
-        energy: player.energy
-      }
+      player
     });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
   }
 };
 
-/**
- * @desc    Get currently logged-in player profile
- * @route   GET /api/auth/me
- * @access  Private
- */
+// POST /api/auth/refresh
+exports.refreshToken = async (req, res) => {
+  const refreshToken = req.cookies?.refreshToken;
+
+  if (!refreshToken) {
+    return res.status(401).json({ success: false, message: 'No refresh token provided' });
+  }
+
+  try {
+    const decoded = jwt.verify(refreshToken, process.env.JWT_SECRET);
+    const player = await Player.findById(decoded.id);
+
+    if (!player) {
+      return res.status(401).json({ success: false, message: 'Player account not found' });
+    }
+
+    const newAccessToken = generateTokens(res, player._id);
+    res.json({ success: true, token: newAccessToken });
+  } catch (err) {
+    return res.status(401).json({ success: false, message: 'Expired or invalid refresh token' });
+  }
+};
+
+// POST /api/auth/logout
+exports.logout = async (req, res) => {
+  res.clearCookie('refreshToken', {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
+  });
+  res.json({ success: true, message: 'Logged out successfully' });
+};
+
+// GET /api/auth/me
 exports.getMe = async (req, res) => {
   try {
-    const player = await Player.findById(req.user._id).select('-password');
+    const player = await Player.findById(req.user._id).populate('inventory.itemId');
     res.json({ success: true, player });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
   }
 };

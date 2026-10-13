@@ -6,22 +6,28 @@ import PropertyManager from './components/PropertyManager';
 import FactionLeaderboard from './components/FactionLeaderboard';
 import CargoInspector from './components/CargoInspector';
 import SoundEngine from './components/SoundEngine';
+import CheckpointModal from './components/CheckpointModal';
+import UnionElection from './components/UnionElection';
+import TraderChat from './components/TraderChat';
 import { 
   MapPin, Wallet, Zap, Truck, TrendingUp, 
-  ShoppingCart, DollarSign, X, Building2, Users, PackageCheck, LogOut 
+  ShoppingCart, DollarSign, X, Building2, Users, 
+  PackageCheck, LogOut, Vote, MessageSquare 
 } from 'lucide-react';
 
-// const SOCKET_URL = 'http://localhost:3030';
 const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:3030';
 const REGIONS = ['Lagos', 'Ibadan', 'Ogun', 'Osun', 'Kwara'];
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState('MARKET'); // 'MARKET', 'REAL_ESTATE', 'FACTIONS', 'CARGO'
+  const [activeTab, setActiveTab] = useState('MARKET'); // 'MARKET', 'REAL_ESTATE', 'FACTIONS', 'CARGO', 'ELECTIONS', 'CHAT'
   const [player, setPlayer] = useState(null);
   const [market, setMarket] = useState([]);
   const [socket, setSocket] = useState(null);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
+
+  // Checkpoint Interception State
+  const [pendingCheckpoint, setPendingCheckpoint] = useState(null);
 
   // Modal State for Market Trading
   const [selectedItem, setSelectedItem] = useState(null);
@@ -30,18 +36,13 @@ export default function App() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    const token = localStorage.getItem('hustle_token');
-    if (token) {
-      fetchPlayerData();
-    } else {
-      setLoading(false);
-    }
+    fetchPlayerData();
   }, []);
 
   useEffect(() => {
     if (!player) return;
 
-    const newSocket = io(SOCKET_URL);
+    const newSocket = io(SOCKET_URL, { withCredentials: true });
     setSocket(newSocket);
 
     newSocket.on('connect', () => {
@@ -55,12 +56,29 @@ export default function App() {
     return () => newSocket.close();
   }, [player]);
 
+  // Subscribe to state room & personal real estate cron payout listener
   useEffect(() => {
     if (socket && player?.currentLocation) {
       socket.emit('JOIN_STATE_MARKET', player.currentLocation);
       fetchMarketData();
     }
-  }, [socket, player?.currentLocation]);
+
+    if (socket && player?._id) {
+      const payoutEventKey = `INCOME_PAYOUT_${player._id}`;
+
+      socket.on(payoutEventKey, (data) => {
+        setMessage(`💰 ${data.message}`);
+        setPlayer((prev) => ({
+          ...prev,
+          cash: data.newCashBalance
+        }));
+      });
+
+      return () => {
+        socket.off(payoutEventKey);
+      };
+    }
+  }, [socket, player?.currentLocation, player?._id]);
 
   const fetchPlayerData = async () => {
     try {
@@ -84,10 +102,16 @@ export default function App() {
     }
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem('hustle_token');
-    setPlayer(null);
-    if (socket) socket.close();
+  const handleLogout = async () => {
+    try {
+      await api.post('/auth/logout');
+    } catch (err) {
+      console.error('Logout error:', err);
+    } fontally {
+      localStorage.removeItem('hustle_token');
+      setPlayer(null);
+      if (socket) socket.close();
+    }
   };
 
   const handlePlayerUpdate = (updatedFields) => {
@@ -98,6 +122,17 @@ export default function App() {
     try {
       setMessage(`Traveling to ${destinationState}...`);
       const res = await api.post('/game/travel', { destinationState });
+
+      // Intercepted by highway checkpoint
+      if (res.data.checkpointRequired) {
+        setPendingCheckpoint({
+          data: res.data.checkpointData,
+          destinationState: res.data.destinationState
+        });
+        setMessage('');
+        return;
+      }
+
       setMessage(res.data.message);
       setPlayer((prev) => ({
         ...prev,
@@ -107,6 +142,32 @@ export default function App() {
       }));
     } catch (err) {
       setMessage(err.response?.data?.message || 'Travel failed');
+    }
+  };
+
+  const resolveCheckpoint = async (action, bribeAmount) => {
+    if (!pendingCheckpoint) return;
+
+    try {
+      const res = await api.post('/game/travel', {
+        destinationState: pendingCheckpoint.destinationState,
+        resolveCheckpoint: true,
+        action,
+        bribeAmount
+      });
+
+      setMessage(`🚨 ${res.data.message}`);
+      setPlayer((prev) => ({
+        ...prev,
+        currentLocation: res.data.currentLocation,
+        cash: res.data.remainingCash,
+        energy: res.data.remainingEnergy,
+        inventory: res.data.inventory || prev.inventory
+      }));
+    } catch (err) {
+      setMessage(err.response?.data?.message || 'Failed to resolve checkpoint');
+    } finally {
+      setPendingCheckpoint(null);
     }
   };
 
@@ -218,50 +279,74 @@ export default function App() {
       <nav className="max-w-6xl mx-auto flex items-center gap-2 mb-8 bg-gray-900 p-1.5 rounded-xl border border-gray-800 overflow-x-auto">
         <button
           onClick={() => setActiveTab('MARKET')}
-          className={`flex-1 min-w-[140px] py-3 rounded-lg text-xs sm:text-sm font-bold transition flex items-center justify-center gap-2 ${
+          className={`flex-1 min-w-[130px] py-3 rounded-lg text-xs sm:text-sm font-bold transition flex items-center justify-center gap-2 ${
             activeTab === 'MARKET'
               ? 'bg-hustle-green text-white shadow-md'
               : 'text-gray-400 hover:text-white hover:bg-gray-800/50'
           }`}
         >
           <TrendingUp className="w-4 h-4" />
-          <span>Commodity Market</span>
+          <span>Market</span>
         </button>
 
         <button
           onClick={() => setActiveTab('REAL_ESTATE')}
-          className={`flex-1 min-w-[140px] py-3 rounded-lg text-xs sm:text-sm font-bold transition flex items-center justify-center gap-2 ${
+          className={`flex-1 min-w-[130px] py-3 rounded-lg text-xs sm:text-sm font-bold transition flex items-center justify-center gap-2 ${
             activeTab === 'REAL_ESTATE'
               ? 'bg-hustle-green text-white shadow-md'
               : 'text-gray-400 hover:text-white hover:bg-gray-800/50'
           }`}
         >
           <Building2 className="w-4 h-4" />
-          <span>Real Estate Exchange</span>
+          <span>Real Estate</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('ELECTIONS')}
+          className={`flex-1 min-w-[130px] py-3 rounded-lg text-xs sm:text-sm font-bold transition flex items-center justify-center gap-2 ${
+            activeTab === 'ELECTIONS'
+              ? 'bg-hustle-green text-white shadow-md'
+              : 'text-gray-400 hover:text-white hover:bg-gray-800/50'
+          }`}
+        >
+          <Vote className="w-4 h-4" />
+          <span>Elections</span>
         </button>
 
         <button
           onClick={() => setActiveTab('FACTIONS')}
-          className={`flex-1 min-w-[140px] py-3 rounded-lg text-xs sm:text-sm font-bold transition flex items-center justify-center gap-2 ${
+          className={`flex-1 min-w-[130px] py-3 rounded-lg text-xs sm:text-sm font-bold transition flex items-center justify-center gap-2 ${
             activeTab === 'FACTIONS'
               ? 'bg-hustle-green text-white shadow-md'
               : 'text-gray-400 hover:text-white hover:bg-gray-800/50'
           }`}
         >
           <Users className="w-4 h-4" />
-          <span>Unions & Leaderboards</span>
+          <span>Leaderboard</span>
         </button>
 
         <button
           onClick={() => setActiveTab('CARGO')}
-          className={`flex-1 min-w-[140px] py-3 rounded-lg text-xs sm:text-sm font-bold transition flex items-center justify-center gap-2 ${
+          className={`flex-1 min-w-[130px] py-3 rounded-lg text-xs sm:text-sm font-bold transition flex items-center justify-center gap-2 ${
             activeTab === 'CARGO'
               ? 'bg-hustle-green text-white shadow-md'
               : 'text-gray-400 hover:text-white hover:bg-gray-800/50'
           }`}
         >
           <PackageCheck className="w-4 h-4" />
-          <span>Cargo Inspector</span>
+          <span>Inspector</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('CHAT')}
+          className={`flex-1 min-w-[130px] py-3 rounded-lg text-xs sm:text-sm font-bold transition flex items-center justify-center gap-2 ${
+            activeTab === 'CHAT'
+              ? 'bg-hustle-green text-white shadow-md'
+              : 'text-gray-400 hover:text-white hover:bg-gray-800/50'
+          }`}
+        >
+          <MessageSquare className="w-4 h-4" />
+          <span>Trade Chat</span>
         </button>
       </nav>
 
@@ -377,12 +462,20 @@ export default function App() {
           <PropertyManager player={player} onPlayerUpdate={handlePlayerUpdate} />
         )}
 
+        {activeTab === 'ELECTIONS' && (
+          <UnionElection player={player} onPlayerUpdate={handlePlayerUpdate} />
+        )}
+
         {activeTab === 'FACTIONS' && (
           <FactionLeaderboard player={player} onPlayerUpdate={handlePlayerUpdate} />
         )}
 
         {activeTab === 'CARGO' && (
           <CargoInspector player={player} onPlayerUpdate={handlePlayerUpdate} />
+        )}
+
+        {activeTab === 'CHAT' && (
+          <TraderChat socket={socket} player={player} />
         )}
       </main>
 
@@ -464,6 +557,16 @@ export default function App() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* CHECKPOINT INTERCEPTION MODAL */}
+      {pendingCheckpoint && (
+        <CheckpointModal
+          checkpointData={pendingCheckpoint.data}
+          destinationState={pendingCheckpoint.destinationState}
+          onResolve={resolveCheckpoint}
+          onCancel={() => setPendingCheckpoint(null)}
+        />
       )}
 
       {/* AMBIENT SOUNDSCAPE CONTROLS */}
