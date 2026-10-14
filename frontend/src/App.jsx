@@ -7,6 +7,7 @@ import FactionLeaderboard from './components/FactionLeaderboard';
 import CargoInspector from './components/CargoInspector';
 import SoundEngine from './components/SoundEngine';
 import CheckpointModal from './components/CheckpointModal';
+import TravelEventModal from './components/TravelEventModal';
 import UnionElection from './components/UnionElection';
 import TraderChat from './components/TraderChat';
 import AdminPanel from './components/AdminPanel';
@@ -27,8 +28,9 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
 
-  // Checkpoint Interception State
+  // Interception Modals State
   const [pendingCheckpoint, setPendingCheckpoint] = useState(null);
+  const [pendingTravelEvent, setPendingTravelEvent] = useState(null);
 
   // Modal State for Market Trading
   const [selectedItem, setSelectedItem] = useState(null);
@@ -124,10 +126,20 @@ export default function App() {
       setMessage(`Traveling to ${destinationState}...`);
       const res = await api.post('/game/travel', { destinationState });
 
-      // Intercepted by highway checkpoint
+      // Checkpoint Inspection Triggered
       if (res.data.checkpointRequired) {
         setPendingCheckpoint({
           data: res.data.checkpointData,
+          destinationState: res.data.destinationState
+        });
+        setMessage('');
+        return;
+      }
+
+      // Random Travel Hazard Triggered
+      if (res.data.eventRequired) {
+        setPendingTravelEvent({
+          data: res.data.eventData,
           destinationState: res.data.destinationState
         });
         setMessage('');
@@ -169,6 +181,32 @@ export default function App() {
       setMessage(err.response?.data?.message || 'Failed to resolve checkpoint');
     } finally {
       setPendingCheckpoint(null);
+    }
+  };
+
+  const resolveTravelEvent = async (action, cost, energyCost) => {
+    if (!pendingTravelEvent) return;
+
+    try {
+      const res = await api.post('/game/travel', {
+        destinationState: pendingTravelEvent.destinationState,
+        resolveEvent: true,
+        selectedAction: action,
+        cost,
+        energyCost
+      });
+
+      setMessage(`⚠️ ${res.data.message}`);
+      setPlayer((prev) => ({
+        ...prev,
+        currentLocation: res.data.currentLocation,
+        cash: res.data.remainingCash,
+        energy: res.data.remainingEnergy
+      }));
+    } catch (err) {
+      setMessage(err.response?.data?.message || 'Failed to resolve travel event');
+    } finally {
+      setPendingTravelEvent(null);
     }
   };
 
@@ -224,7 +262,6 @@ export default function App() {
     );
   }
 
-  // Render Authentication View if no active session
   if (!player) {
     return <Auth onLoginSuccess={(playerData) => setPlayer(playerData)} />;
   }
@@ -595,6 +632,16 @@ export default function App() {
           destinationState={pendingCheckpoint.destinationState}
           onResolve={resolveCheckpoint}
           onCancel={() => setPendingCheckpoint(null)}
+        />
+      )}
+
+      {/* TRAVEL HAZARD / EVENT MODAL */}
+      {pendingTravelEvent && (
+        <TravelEventModal
+          eventData={pendingTravelEvent.data}
+          destinationState={pendingTravelEvent.destinationState}
+          onResolve={resolveTravelEvent}
+          onCancel={() => setPendingTravelEvent(null)}
         />
       )}
 

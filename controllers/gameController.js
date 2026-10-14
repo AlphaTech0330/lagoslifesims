@@ -1,6 +1,7 @@
 const Item = require('../models/Item');
 const Player = require('../models/Player');
 const { checkInterstateCheckpoint } = require('../services/checkpointService');
+const { generateTravelEvent } = require('../services/travelEventService');
 
 exports.getMarketPrices = async (req, res) => {
   try {
@@ -34,9 +35,18 @@ exports.getMarketPrices = async (req, res) => {
 };
 
 exports.travel = async (req, res) => {
-  const { destinationState, resolveCheckpoint, action } = req.body;
-  const TRAVEL_COST = 15000;
-  const ENERGY_COST = 20;
+  const { 
+    destinationState, 
+    resolveCheckpoint, 
+    action, 
+    resolveEvent, 
+    selectedAction, 
+    cost, 
+    energyCost 
+  } = req.body;
+
+  const BASE_TRAVEL_COST = 15000;
+  const BASE_ENERGY_COST = 20;
 
   try {
     const player = await Player.findById(req.user._id).populate('inventory.itemId');
@@ -45,24 +55,51 @@ exports.travel = async (req, res) => {
       return res.status(400).json({ success: false, message: 'You are already in this state.' });
     }
 
-    if (player.cash < TRAVEL_COST) {
-      return res.status(400).json({ success: false, message: 'Insufficient cash for highway tolls and fuel.' });
+    if (player.cash < BASE_TRAVEL_COST) {
+      return res.status(400).json({ success: false, message: 'Insufficient cash for highway fuel and tolls.' });
     }
 
-    if (player.energy < ENERGY_COST) {
+    if (player.energy < BASE_ENERGY_COST) {
       return res.status(400).json({ success: false, message: 'Not enough energy to travel. Rest first!' });
     }
 
-    // --- CHECKPOINT INTERACTION RESOLUTION ---
+    // --- RESOLVE INTERSTATE HAZARD / EVENT CHOICE ---
+    if (resolveEvent) {
+      const actualCost = cost || 0;
+      const actualEnergyCost = energyCost || 0;
+
+      if (player.cash < (BASE_TRAVEL_COST + actualCost)) {
+        return res.status(400).json({ success: false, message: 'Insufficient cash to execute this choice!' });
+      }
+
+      if (player.energy < (BASE_ENERGY_COST + actualEnergyCost)) {
+        return res.status(400).json({ success: false, message: 'Insufficient energy to execute this choice!' });
+      }
+
+      player.cash -= (BASE_TRAVEL_COST + actualCost);
+      player.energy -= (BASE_ENERGY_COST + actualEnergyCost);
+      player.currentLocation = destinationState;
+      await player.save();
+
+      return res.json({
+        success: true,
+        eventResolved: true,
+        message: `Overcame travel hazard and arrived safely in ${destinationState}.`,
+        currentLocation: player.currentLocation,
+        remainingCash: player.cash,
+        remainingEnergy: player.energy
+      });
+    }
+
+    // --- RESOLVE CHECKPOINT INTERACTION ---
     if (resolveCheckpoint) {
       if (action === 'BRIBE') {
         const bribeCost = req.body.bribeAmount || 10000;
-        if (player.cash < bribeCost) {
+        if (player.cash < (BASE_TRAVEL_COST + bribeCost)) {
           return res.status(400).json({ success: false, message: 'Not enough cash to settle the checkpoint officers!' });
         }
         player.cash -= bribeCost;
       } else if (action === 'SURRENDER') {
-        // Remove contraband and regulated items from inventory
         const REGULATED = ['Untagged Teak Timber', 'Contraband Fuel', 'Unprocessed Cocoa'];
         player.inventory = player.inventory.filter((inv) => {
           const name = inv.itemId?.name || '';
@@ -70,9 +107,8 @@ exports.travel = async (req, res) => {
         });
       }
 
-      // Finalize travel after resolving checkpoint
-      player.cash -= TRAVEL_COST;
-      player.energy -= ENERGY_COST;
+      player.cash -= BASE_TRAVEL_COST;
+      player.energy -= BASE_ENERGY_COST;
       player.currentLocation = destinationState;
       await player.save();
 
@@ -80,7 +116,7 @@ exports.travel = async (req, res) => {
         success: true,
         checkpointResolved: true,
         message: action === 'BRIBE' 
-          ? `Settled the officers and proceeded to ${destinationState}.` 
+          ? `Settled the officers and arrived in ${destinationState}.` 
           : `Contraband surrendered, but allowed to proceed to ${destinationState}.`,
         currentLocation: player.currentLocation,
         remainingCash: player.cash,
@@ -89,9 +125,8 @@ exports.travel = async (req, res) => {
       });
     }
 
-    // --- TRIGGER RANDOM CHECKPOINT CHECK ---
+    // --- 1. CHECK FOR CHECKPOINT INSPECTION ---
     const checkpoint = checkInterstateCheckpoint(destinationState, player.inventory);
-
     if (checkpoint.triggered) {
       return res.json({
         success: true,
@@ -101,9 +136,20 @@ exports.travel = async (req, res) => {
       });
     }
 
-    // Normal travel if no checkpoint was triggered
-    player.cash -= TRAVEL_COST;
-    player.energy -= ENERGY_COST;
+    // --- 2. CHECK FOR RANDOM TRAVEL HAZARD (BREAKDOWNS, FUEL, WEATHER) ---
+    const travelEvent = generateTravelEvent(destinationState, player);
+    if (travelEvent.triggered) {
+      return res.json({
+        success: true,
+        eventRequired: true,
+        eventData: travelEvent,
+        destinationState
+      });
+    }
+
+    // Standard uninterrupted travel execution
+    player.cash -= BASE_TRAVEL_COST;
+    player.energy -= BASE_ENERGY_COST;
     player.currentLocation = destinationState;
     await player.save();
 
@@ -138,7 +184,6 @@ exports.buyItem = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Insufficient cash balance' });
     }
 
-    // Check cargo storage limits
     const currentInventoryCount = player.inventory.reduce((sum, i) => sum + i.quantity, 0);
     const maxCapacity = 100 + (player.extraStorageCapacity || 0);
 
