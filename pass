@@ -6,3 +6,20 @@
 "currentLocation":"Lagos",
 "cash":50000,
 "energy":100}}
+
+
+"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjZhYzdhNTdhNjY0Njk0MjAzNjNhYTM1MSIsImlhdCI6MTc5MTk4MTE3MywiZXhwIjoxNzkxOTgyMDczfQ.qF4KeQsfNRCFMPxF2ouzRA2_TsbhrzaWrlIzntJIY0k",
+"player":{"vehicle":{"durability":100,"extraStorage":0,"installedUpgrades":[],
+"name":"Standard Bedford Lorry"},"_id":"6ac7a57a66469420363aa351",
+"username":"Babajide_Hustle",
+"email":"babajide@example.com",
+"password":"$2a$10$AjkdBhDOsaZ71J3id36mReNVPqXTYnWPdScF64Pbi4w0VXxmJ3VMO",
+"currentLocation":"Lagos",
+"cash":50000,
+"bankBalance":0,"energy":100,
+"reputation":{"lagosTech":0,"ibadanTrade":0,"ogunIndustry":0,"osunCulture":0,"kwaraCommerce":0},
+"extraStorageCapacity":0,"propertiesOwned":[],"faction":null,"factionRole":"None",
+"netWorth":50000,"totalTradesCompleted":0,"totalCargoHauledKg":0,"inventory":[],
+"propertiesRented":[],"createdAt":"2026-10-08T14:15:22.863Z","updatedAt":"2026-10-14T12:26:45.555Z","__v":1,"isAdmin":true}}
+
+
