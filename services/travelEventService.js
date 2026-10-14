@@ -1,8 +1,8 @@
 /**
  * Expanded Interstate Travel Random Event Generator
+ * Factor in Vehicle Upgrades for breakdown mitigation and fuel cost discounts.
  */
 
-// Regional Hazard Multipliers
 const REGIONAL_HAZARDS = {
   Lagos: { weather: 'Torrential Downpour / Highway Flooding', breakdownRisk: 0.15 },
   Ibadan: { weather: 'Heavy Rainstorm', breakdownRisk: 0.10 },
@@ -15,10 +15,17 @@ const REGIONAL_HAZARDS = {
  * Evaluates random travel hazards during interstate transport
  */
 exports.generateTravelEvent = (destinationState, player) => {
+  const installed = player?.vehicle?.installedUpgrades || [];
+
+  // 1. Calculate Aggregate Breakdown Mitigation
+  const totalBreakdownProtection = installed.reduce((sum, u) => sum + (u.breakdownReductionPct || 0), 0);
+  const baseBreakdownChance = 0.15;
+  const effectiveBreakdownChance = Math.max(0.02, baseBreakdownChance * (1 - totalBreakdownProtection));
+
   const roll = Math.random();
 
-  // 1. VEHICLE BREAKDOWN EVENT (~15% Chance)
-  if (roll < 0.15) {
+  // --- 1. VEHICLE BREAKDOWN EVENT ---
+  if (roll < effectiveBreakdownChance) {
     const repairCost = 20000;
     const energyPenalty = 15;
 
@@ -46,22 +53,25 @@ exports.generateTravelEvent = (destinationState, player) => {
     };
   }
 
-  // 2. FUEL SHORTAGE / SCARCITY (~12% Chance)
+  // --- 2. FUEL SHORTAGE / SCARCITY EVENT (~12% Chance) ---
   if (roll >= 0.15 && roll < 0.27) {
-    const inflatedFuelCost = 18000;
+    const hasAuxTank = installed.some(u => u.type === 'FUEL_TANK');
+    const inflatedFuelCost = hasAuxTank ? 9000 : 18000;
 
     return {
       triggered: true,
       type: 'FUEL_SHORTAGE',
       title: '⛽ Regional Fuel Scarcity',
-      message: `Filling stations along the ${destinationState} route are out of petrol. Local black-market hawkers are selling fuel at surge prices.`,
+      message: hasAuxTank 
+        ? `Fuel stations are out of petrol, but your Auxiliary Fuel Tank covers half the needed fuel supply!`
+        : `Filling stations along the ${destinationState} route are out of petrol. Local black-market hawkers are selling fuel at surge prices.`,
       options: [
         {
           action: 'BUY_BLACK_MARKET',
-          label: 'Buy Black Market Fuel',
+          label: hasAuxTank ? 'Use Auxiliary Reserves + Partial Refuel' : 'Buy Black Market Fuel',
           cost: inflatedFuelCost,
           energyCost: 0,
-          description: `Pay inflated fuel cost (₦${inflatedFuelCost.toLocaleString()}).`
+          description: `Pay fuel cost (₦${inflatedFuelCost.toLocaleString()}).`
         },
         {
           action: 'WAIT_IT_OUT',
@@ -74,7 +84,7 @@ exports.generateTravelEvent = (destinationState, player) => {
     };
   }
 
-  // 3. WEATHER HAZARD (~10% Chance)
+  // --- 3. WEATHER HAZARD EVENT (~10% Chance) ---
   if (roll >= 0.27 && roll < 0.37) {
     const hazard = REGIONAL_HAZARDS[destinationState] || { weather: 'Heavy Downpour', breakdownRisk: 0.1 };
 
@@ -102,6 +112,6 @@ exports.generateTravelEvent = (destinationState, player) => {
     };
   }
 
-  // No hazard event triggered
+  // No hazard triggered
   return { triggered: false };
 };

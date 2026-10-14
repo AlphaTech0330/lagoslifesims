@@ -10,18 +10,19 @@ import CheckpointModal from './components/CheckpointModal';
 import TravelEventModal from './components/TravelEventModal';
 import UnionElection from './components/UnionElection';
 import TraderChat from './components/TraderChat';
+import Garage from './components/Garage';
 import AdminPanel from './components/AdminPanel';
 import { 
   MapPin, Wallet, Zap, Truck, TrendingUp, 
   ShoppingCart, DollarSign, X, Building2, Users, 
-  PackageCheck, LogOut, Vote, MessageSquare, Crown 
+  PackageCheck, LogOut, Vote, MessageSquare, Crown, Wrench 
 } from 'lucide-react';
 
 const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:3030';
 const REGIONS = ['Lagos', 'Ibadan', 'Ogun', 'Osun', 'Kwara'];
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState('MARKET'); // 'MARKET', 'REAL_ESTATE', 'ELECTIONS', 'FACTIONS', 'CARGO', 'CHAT', 'ADMIN'
+  const [activeTab, setActiveTab] = useState('MARKET'); // 'MARKET', 'GARAGE', 'REAL_ESTATE', 'ELECTIONS', 'FACTIONS', 'CARGO', 'CHAT', 'ADMIN'
   const [player, setPlayer] = useState(null);
   const [market, setMarket] = useState([]);
   const [socket, setSocket] = useState(null);
@@ -338,6 +339,18 @@ export default function App() {
         </button>
 
         <button
+          onClick={() => setActiveTab('GARAGE')}
+          className={`flex-1 min-w-[120px] py-3 rounded-lg text-xs sm:text-sm font-bold transition flex items-center justify-center gap-2 ${
+            activeTab === 'GARAGE'
+              ? 'bg-hustle-green text-white shadow-md'
+              : 'text-gray-400 hover:text-white hover:bg-gray-800/50'
+          }`}
+        >
+          <Wrench className="w-4 h-4" />
+          <span>Garage</span>
+        </button>
+
+        <button
           onClick={() => setActiveTab('REAL_ESTATE')}
           className={`flex-1 min-w-[120px] py-3 rounded-lg text-xs sm:text-sm font-bold transition flex items-center justify-center gap-2 ${
             activeTab === 'REAL_ESTATE'
@@ -518,6 +531,10 @@ export default function App() {
               )}
             </section>
           </div>
+        )}
+
+        {activeTab === 'GARAGE' && (
+          <Garage player={player} onPlayerUpdate={handlePlayerUpdate} />
         )}
 
         {activeTab === 'REAL_ESTATE' && (

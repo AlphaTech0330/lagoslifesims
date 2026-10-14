@@ -39,10 +39,31 @@ const PlayerSchema = new mongoose.Schema({
     type: Number, 
     default: 0 
   },
-  extraStorageCapacity: { 
-    type: Number, 
-    default: 0 
+  
+  // VEHICLE & TRUCK UPGRADE SYSTEM
+  vehicle: {
+    name: { 
+      type: String, 
+      default: 'Standard Bedford Lorry' 
+    },
+    durability: { 
+      type: Number, 
+      default: 100 
+    },
+    extraStorage: { 
+      type: Number, 
+      default: 0 
+    },
+    installedUpgrades: [{
+      upgradeId: { type: String, required: true },
+      name: { type: String, required: true },
+      type: { type: String, required: true }, // 'TIRES', 'FUEL_TANK', 'COOLING', 'CARGO_BAY'
+      breakdownReductionPct: { type: Number, default: 0 },
+      fuelCostDiscountPct: { type: Number, default: 0 },
+      storageBonus: { type: Number, default: 0 }
+    }]
   },
+
   inventory: [{
     itemId: { 
       type: mongoose.Schema.Types.ObjectId, 
@@ -55,7 +76,7 @@ const PlayerSchema = new mongoose.Schema({
   }]
 }, { timestamps: true });
 
-// Password hashing middleware before save
+// Password hashing pre-save middleware
 PlayerSchema.pre('save', async function(next) {
   if (!this.isModified('password')) return next();
   const salt = await bcrypt.genSalt(10);
