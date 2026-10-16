@@ -14,6 +14,7 @@ const { adminOnly } = require('../middleware/adminMiddleware');
 
 // Standard Player Routes
 router.get('/', protect, getElections);
+router.get('/treasury/:region', protect, getTreasuryLedger);
 router.post('/register', protect, registerCandidate);
 router.post('/vote', protect, castVote);
 
