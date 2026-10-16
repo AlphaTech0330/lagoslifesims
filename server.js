@@ -9,6 +9,7 @@ require('dotenv').config();
 // Service & Engine Imports
 const { initMarketSimulation } = require('./services/marketEngine');
 const { initCronJobs } = require('./services/cronService');
+const { initTaxCronJob } = require('./services/taxCronService');
 
 // Route Imports
 const authRoutes = require('./routes/authRoutes');
@@ -19,7 +20,7 @@ const electionRoutes = require('./routes/electionRoutes');
 const chatRoutes = require('./routes/chatRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const vehicleRoutes = require('./routes/vehicleRoutes');
-const tradeRoutes = require('./routes/tradeRoutes'); // P2P Escrow Trade Contracts
+const tradeRoutes = require('./routes/tradeRoutes');
 
 const app = express();
 const server = http.createServer(app);
@@ -61,7 +62,7 @@ app.use('/api/elections', electionRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/vehicle', vehicleRoutes);
-app.use('/api/trade-contracts', tradeRoutes); // Mounted P2P Trade Contracts
+app.use('/api/trade-contracts', tradeRoutes);
 
 // Health Check Endpoint
 app.get('/health', (req, res) => {
@@ -94,9 +95,10 @@ io.on('connection', (socket) => {
   });
 });
 
-// Initialize Background Engines & Cron Jobs
+// Initialize Background Engines & Scheduled Tasks
 initMarketSimulation(io);
 initCronJobs(io);
+initTaxCronJob(io);
 
 const PORT = process.env.PORT || 3030;
 server.listen(PORT, () => {
