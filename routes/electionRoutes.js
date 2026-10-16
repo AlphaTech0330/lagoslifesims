@@ -2,24 +2,17 @@ const express = require('express');
 const router = express.Router();
 const { 
   getElections, 
-  registerCandidate, 
+  registerCandidacy, 
   castVote, 
-  closeElection,
-  forceRotateElections 
+  forceRotatePhase, 
+  getTreasuryLedger // <--- Add this import
 } = require('../controllers/electionController');
-
-// Middleware Imports
 const { protect } = require('../middleware/authMiddleware');
-const { adminOnly } = require('../middleware/adminMiddleware');
 
-// Standard Player Routes
 router.get('/', protect, getElections);
 router.get('/treasury/:region', protect, getTreasuryLedger);
-router.post('/register', protect, registerCandidate);
+router.post('/register', protect, registerCandidacy);
 router.post('/vote', protect, castVote);
-
-// Restricted Admin Routes
-router.post('/close', protect, adminOnly, closeElection);
-router.post('/force-rotate', protect, adminOnly, forceRotateElections);
+router.post('/force-rotate', protect, forceRotatePhase);
 
 module.exports = router;
