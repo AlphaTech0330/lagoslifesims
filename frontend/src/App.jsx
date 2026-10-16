@@ -61,7 +61,7 @@ export default function App() {
     return () => newSocket.close();
   }, [player]);
 
-  // Subscribe to state room & personal real estate cron payout listener
+  // Subscribe to state room, real estate cron payouts, & Union Chairman commission events
   useEffect(() => {
     if (socket && player?.currentLocation) {
       socket.emit('JOIN_STATE_MARKET', player.currentLocation);
@@ -70,7 +70,9 @@ export default function App() {
 
     if (socket && player?._id) {
       const payoutEventKey = `INCOME_PAYOUT_${player._id}`;
+      const commissionEventKey = `COMMISSION_PAYOUT_${player._id}`;
 
+      // Real Estate Cron Income Payout Listener
       socket.on(payoutEventKey, (data) => {
         setMessage(`💰 ${data.message}`);
         setPlayer((prev) => ({
@@ -79,8 +81,18 @@ export default function App() {
         }));
       });
 
+      // Union Chairman 2% P2P Trade Commission Listener
+      socket.on(commissionEventKey, (data) => {
+        setMessage(`🏛️ ${data.message}`);
+        setPlayer((prev) => ({
+          ...prev,
+          cash: prev.cash + data.amount
+        }));
+      });
+
       return () => {
         socket.off(payoutEventKey);
+        socket.off(commissionEventKey);
       };
     }
   }, [socket, player?.currentLocation, player?._id]);
