@@ -9,6 +9,7 @@ import SoundEngine from './components/SoundEngine';
 import CheckpointModal from './components/CheckpointModal';
 import TravelEventModal from './components/TravelEventModal';
 import UnionElection from './components/UnionElection';
+import UnionTreasury from './components/UnionTreasury';
 import TraderChat from './components/TraderChat';
 import Garage from './components/Garage';
 import P2PExchange from './components/P2PExchange';
@@ -16,14 +17,14 @@ import AdminPanel from './components/AdminPanel';
 import { 
   MapPin, Wallet, Zap, Truck, TrendingUp, 
   ShoppingCart, DollarSign, X, Building2, Users, 
-  PackageCheck, LogOut, Vote, MessageSquare, Crown, Wrench, Repeat 
+  PackageCheck, LogOut, Vote, MessageSquare, Crown, Wrench, Repeat, Landmark 
 } from 'lucide-react';
 
 const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:3030';
 const REGIONS = ['Lagos', 'Ibadan', 'Ogun', 'Osun', 'Kwara'];
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState('MARKET'); // 'MARKET', 'GARAGE', 'P2P_EXCHANGE', 'REAL_ESTATE', 'ELECTIONS', 'FACTIONS', 'CARGO', 'CHAT', 'ADMIN'
+  const [activeTab, setActiveTab] = useState('MARKET'); // 'MARKET', 'GARAGE', 'P2P_EXCHANGE', 'REAL_ESTATE', 'ELECTIONS', 'TREASURY', 'FACTIONS', 'CARGO', 'CHAT', 'ADMIN'
   const [player, setPlayer] = useState(null);
   const [market, setMarket] = useState([]);
   const [socket, setSocket] = useState(null);
@@ -124,7 +125,7 @@ export default function App() {
       await api.post('/auth/logout');
     } catch (err) {
       console.error('Logout error:', err);
-    } finally {
+    } fontally {
       localStorage.removeItem('hustle_token');
       setPlayer(null);
       if (socket) socket.close();
@@ -400,6 +401,18 @@ export default function App() {
         </button>
 
         <button
+          onClick={() => setActiveTab('TREASURY')}
+          className={`flex-1 min-w-[120px] py-3 rounded-lg text-xs sm:text-sm font-bold transition flex items-center justify-center gap-2 ${
+            activeTab === 'TREASURY'
+              ? 'bg-hustle-green text-white shadow-md'
+              : 'text-gray-400 hover:text-white hover:bg-gray-800/50'
+          }`}
+        >
+          <Landmark className="w-4 h-4" />
+          <span>Treasury</span>
+        </button>
+
+        <button
           onClick={() => setActiveTab('FACTIONS')}
           className={`flex-1 min-w-[120px] py-3 rounded-lg text-xs sm:text-sm font-bold transition flex items-center justify-center gap-2 ${
             activeTab === 'FACTIONS'
@@ -572,6 +585,10 @@ export default function App() {
 
         {activeTab === 'ELECTIONS' && (
           <UnionElection player={player} onPlayerUpdate={handlePlayerUpdate} />
+        )}
+
+        {activeTab === 'TREASURY' && (
+          <UnionTreasury player={player} />
         )}
 
         {activeTab === 'FACTIONS' && (
